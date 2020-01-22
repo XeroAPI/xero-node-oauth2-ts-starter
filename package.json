@@ -1,0 +1,28 @@
+{
+  "name": "xero-node-oauth2-ts-starter",
+  "version": "1.0.0",
+  "description": "a starter project using node, express, typescript, xero-node, and oauth 2.0",
+  "main": "build/app.js",
+  "scripts": {
+    "tsc": "tsc",
+    "dev": "ts-node-dev --respawn --transpileOnly ./app/app.ts",
+    "prod": "tsc && node ./build/app.js"
+  },
+  "author": "Xero Platform Team",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "express-session": "^1.17.0",
+    "jwt-decode": "^2.2.0",
+    "xero-node": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.2",
+    "@types/express-session": "^1.15.16",
+    "@types/node": "^13.1.8",
+    "ts-lint": "^4.5.1",
+    "ts-node-dev": "^1.0.0-pre.44",
+    "typescript": "^3.7.5"
+  }
+}
