@@ -2,7 +2,7 @@ require('dotenv').config();
 import express from 'express';
 import { Request, Response } from 'express';
 import jwtDecode from 'jwt-decode';
-import { XeroClient, Account, AccountType, Allocation, HistoryRecords, BankTransaction, BankTransactions, BankTransfers, BatchPayments, Invoice, Invoices, PaymentService, Contacts, ContactGroups, Phone, PaymentTermType, Allocations, CreditNote, CreditNotes, Currency, CurrencyCode, Employee, Employees, ExpenseClaim, ExpenseClaims, Items, LinkedTransaction, ManualJournal, ManualJournals, Payment, Payments, PaymentServices, PurchaseOrders, Quotes, Receipt, Receipts, LineAmountTypes, TaxRates, TaxRate, TrackingCategory, TrackingOption, RequestEmpty, BankTransfer, BatchPayment, ContactGroup, Contact, Item, Overpayment, Prepayment, RepeatingInvoice, User } from 'xero-node';
+import { XeroClient, Account, Accounts, AccountType, Allocation, HistoryRecords, BankTransaction, BankTransactions, BankTransfers, BatchPayments, Invoice, Invoices, PaymentService, Contacts, ContactGroups, Phone, PaymentTermType, Allocations, CreditNote, CreditNotes, Currency, CurrencyCode, Employee, Employees, ExpenseClaim, ExpenseClaims, Items, LinkedTransaction, ManualJournal, ManualJournals, Payment, Payments, PaymentServices, PurchaseOrders, Quotes, Receipt, Receipts, LineAmountTypes, TaxRates, TaxRate, TrackingCategory, TrackingOption, RequestEmpty, BankTransfer, BatchPayment, ContactGroup, Contact, Item, Overpayment, Prepayment, RepeatingInvoice, User, LinkedTransactions } from 'xero-node';
 import * as fs from "fs";
 import { TokenSet } from 'openid-client';
 
@@ -131,12 +131,12 @@ app.get('/organisation', async (req: Request, res: Response) => {
 
 	const xeroTenantId = '923e41ab-3dce-4b6e-8e8c-49e1d7e19df7';  // {String} Xero identifier for Tenant 
 	await xero.setTokenSet(new TokenSet({
-		id_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjFDQUY4RTY2NzcyRDZEQzAyOEQ2NzI2RkQwMjYxNTgxNTcwRUZDMTkiLCJ0eXAiOiJKV1QiLCJ4NXQiOiJISy1PWm5jdGJjQW8xbkp2MENZVmdWY09fQmsifQ.eyJuYmYiOjE1ODA5NDY3NDQsImV4cCI6MTU4MDk0NzA0NCwiaXNzIjoiaHR0cHM6Ly9pZGVudGl0eS54ZXJvLmNvbSIsImF1ZCI6IjlGREY1OUVDNkJDODQ0OTNBRjI5QUFCNkNDNDREMzM1IiwiaWF0IjoxNTgwOTQ2NzQ0LCJhdF9oYXNoIjoiMWF3ZEw0MlhPNU42aVE1VXFUSDhYdyIsInNpZCI6IjUzYzhmZGNjODEyNDI1NWVmZDRhNDg2NGM2NmM4MjA4Iiwic3ViIjoiZjFjNGQ0YjY3NDI0NTI4NmFjYmZkODBjOTExMTg0OWUiLCJhdXRoX3RpbWUiOjE1ODA5NDY3MzQsInhlcm9fdXNlcmlkIjoiOTY1MzY1MDAtNDViOS00MTcwLWI0YWQtNDBjMTgwZmI5ZjQ4IiwiZ2xvYmFsX3Nlc3Npb25faWQiOiJhNDY1MTA0YmVmNWU0ZjcxYWUyODI0OTM4MzAyYTFhZiIsInByZWZlcnJlZF91c2VybmFtZSI6InJldHQuYmVocmVuc0B4ZXJvLmNvbSIsImVtYWlsIjoicmV0dC5iZWhyZW5zQHhlcm8uY29tIiwiZ2l2ZW5fbmFtZSI6IlJldHQiLCJmYW1pbHlfbmFtZSI6IkJlaHJlbnMifQ.mSR70wI3uiUO81HBhNMl5HGk1j4yZpqlF-7MRVCfd3X9vh9HaAEx39aQjlkEc3ROCvekR_Kou0a8WPPImBzv2ymAOHl8mXo_LRgsSpg2V74JNPdCF7wNiS92uAP0tniWVmHNKwKZ3LisS0QIwuMbppE1rx5EejBsRxZQTSLRubWLC-r99ItEy91-ik8wmdPPfwDmUkR_CMhbPTiRFyk_G5AXgKyAjyvJOfqcA3_FxEewq3HORU8yflJurWtLaJihcSLhzn29ppeWd_77w4Tb7DZtCnBp95VjYh40n45n5KhzrEZT8UfHd3mnAmohrHJ0e0icVTouDOvXv3RHhi_MwA',
-		access_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjFDQUY4RTY2NzcyRDZEQzAyOEQ2NzI2RkQwMjYxNTgxNTcwRUZDMTkiLCJ0eXAiOiJKV1QiLCJ4NXQiOiJISy1PWm5jdGJjQW8xbkp2MENZVmdWY09fQmsifQ.eyJuYmYiOjE1ODA5NDY3NDQsImV4cCI6MTU4MDk0ODU0NCwiaXNzIjoiaHR0cHM6Ly9pZGVudGl0eS54ZXJvLmNvbSIsImF1ZCI6Imh0dHBzOi8vaWRlbnRpdHkueGVyby5jb20vcmVzb3VyY2VzIiwiY2xpZW50X2lkIjoiOUZERjU5RUM2QkM4NDQ5M0FGMjlBQUI2Q0M0NEQzMzUiLCJzdWIiOiJmMWM0ZDRiNjc0MjQ1Mjg2YWNiZmQ4MGM5MTExODQ5ZSIsImF1dGhfdGltZSI6MTU4MDk0NjczNCwieGVyb191c2VyaWQiOiI5NjUzNjUwMC00NWI5LTQxNzAtYjRhZC00MGMxODBmYjlmNDgiLCJnbG9iYWxfc2Vzc2lvbl9pZCI6ImE0NjUxMDRiZWY1ZTRmNzFhZTI4MjQ5MzgzMDJhMWFmIiwianRpIjoiNzJiMTAxNzk4NDRjMTkxMDg0OTFjMDE1OGFmNTZkMmYiLCJzY29wZSI6WyJlbWFpbCIsInByb2ZpbGUiLCJvcGVuaWQiLCJhY2NvdW50aW5nLnJlcG9ydHMucmVhZCIsInBheW1lbnRzZXJ2aWNlcyIsImFjY291bnRpbmcuc2V0dGluZ3MiLCJhY2NvdW50aW5nLmF0dGFjaG1lbnRzIiwiYWNjb3VudGluZy50cmFuc2FjdGlvbnMiLCJhY2NvdW50aW5nLmpvdXJuYWxzLnJlYWQiLCJhY2NvdW50aW5nLmNvbnRhY3RzIiwib2ZmbGluZV9hY2Nlc3MiXX0.g_h2uGGwQRCY9ewGhd569nrxUb7zur-PGUhvdNxQrSWiTmnhw4oxDxjvpkJaoIPRoyNs5B5vPG9qu_qSmB7wuBbNHvDpF3-JEssmI4Ef0IcfOEZM5Lol-Ln4OkIvN0vkZSIxrK5m69XI4UmR6kAyiJORpRAECiwoksJKMthGsEq0ZquDzRtI7KLdaiO0mn9QmapSw81AMAgO3o2wDhR2yCOQKByYW3iW6kE9ueWhNZ455hMIMd7HZEv60XYBOSWu1irOmjCXyCFfWKtSkIMp-YiFTCbX4zFNPudXN5jKYQyI-n-jRWwqdLPuHGv82jBySa6Zv7u_JwjpFArsy2YS1w',
-		expires_at: 1580948544,
+		id_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjFDQUY4RTY2NzcyRDZEQzAyOEQ2NzI2RkQwMjYxNTgxNTcwRUZDMTkiLCJ0eXAiOiJKV1QiLCJ4NXQiOiJISy1PWm5jdGJjQW8xbkp2MENZVmdWY09fQmsifQ.eyJuYmYiOjE1ODEwMTU5NzUsImV4cCI6MTU4MTAxNjI3NSwiaXNzIjoiaHR0cHM6Ly9pZGVudGl0eS54ZXJvLmNvbSIsImF1ZCI6IjlGREY1OUVDNkJDODQ0OTNBRjI5QUFCNkNDNDREMzM1IiwiaWF0IjoxNTgxMDE1OTc1LCJhdF9oYXNoIjoiMmg2YTVyeENpdG93b0Y0VFdqalNoUSIsInNpZCI6ImUyYTI5NmJhYmFmMjk1NmE3MmJjYzkzYWI1ZTllNWZjIiwic3ViIjoiZjFjNGQ0YjY3NDI0NTI4NmFjYmZkODBjOTExMTg0OWUiLCJhdXRoX3RpbWUiOjE1ODEwMTU5NjgsInhlcm9fdXNlcmlkIjoiOTY1MzY1MDAtNDViOS00MTcwLWI0YWQtNDBjMTgwZmI5ZjQ4IiwiZ2xvYmFsX3Nlc3Npb25faWQiOiJhMzE2MDlmNmVhY2Y0YzMwYjVkYWFlYzQ2MDQ2YTU2YiIsInByZWZlcnJlZF91c2VybmFtZSI6InJldHQuYmVocmVuc0B4ZXJvLmNvbSIsImVtYWlsIjoicmV0dC5iZWhyZW5zQHhlcm8uY29tIiwiZ2l2ZW5fbmFtZSI6IlJldHQiLCJmYW1pbHlfbmFtZSI6IkJlaHJlbnMifQ.i0t3cYY0BS5zwhDSdsrBhC8j3iWEf73cQviEkcJpVhxJYzS_wh4_3eMe_Ob3F3KivPKOpKUjhNYzlPrSciHJVKtAXih0vWyWaUCWi13ex6JMhs9c1crq61M6BFvk7J5tSwR54NFsgy7GtOmFPNQVFZWb6qbNnBfiu_H72r65prubvACIK89OZ7koD-OA28StgcJibeFoVdKLM2d-KHyVVhgEZmjvVuiZG5Si4yEJInkrH-sl4jZhklbR58VvCKyujljQZamf1IFQ_sWhvX4DAvt_-b21ILvnazr2euMNX2NDdeZhSFx8eQXqc3XlUTRWvttXvNT098FYQxpFTf6Fsg',
+		access_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjFDQUY4RTY2NzcyRDZEQzAyOEQ2NzI2RkQwMjYxNTgxNTcwRUZDMTkiLCJ0eXAiOiJKV1QiLCJ4NXQiOiJISy1PWm5jdGJjQW8xbkp2MENZVmdWY09fQmsifQ.eyJuYmYiOjE1ODEwMTU5NzUsImV4cCI6MTU4MTAxNzc3NSwiaXNzIjoiaHR0cHM6Ly9pZGVudGl0eS54ZXJvLmNvbSIsImF1ZCI6Imh0dHBzOi8vaWRlbnRpdHkueGVyby5jb20vcmVzb3VyY2VzIiwiY2xpZW50X2lkIjoiOUZERjU5RUM2QkM4NDQ5M0FGMjlBQUI2Q0M0NEQzMzUiLCJzdWIiOiJmMWM0ZDRiNjc0MjQ1Mjg2YWNiZmQ4MGM5MTExODQ5ZSIsImF1dGhfdGltZSI6MTU4MTAxNTk2OCwieGVyb191c2VyaWQiOiI5NjUzNjUwMC00NWI5LTQxNzAtYjRhZC00MGMxODBmYjlmNDgiLCJnbG9iYWxfc2Vzc2lvbl9pZCI6ImEzMTYwOWY2ZWFjZjRjMzBiNWRhYWVjNDYwNDZhNTZiIiwianRpIjoiOTRkNjVmMjM5NGZmZDkyYWYzODVjZWRhNDQ2NDhlNjgiLCJzY29wZSI6WyJlbWFpbCIsInByb2ZpbGUiLCJvcGVuaWQiLCJhY2NvdW50aW5nLnJlcG9ydHMucmVhZCIsInBheW1lbnRzZXJ2aWNlcyIsImFjY291bnRpbmcuc2V0dGluZ3MiLCJhY2NvdW50aW5nLmF0dGFjaG1lbnRzIiwiYWNjb3VudGluZy50cmFuc2FjdGlvbnMiLCJhY2NvdW50aW5nLmpvdXJuYWxzLnJlYWQiLCJhY2NvdW50aW5nLmNvbnRhY3RzIiwib2ZmbGluZV9hY2Nlc3MiXX0.uN_GFPuj3NKKgaf357skb_fIE1MB0Va_610XLJ51YHZkEMsTTSgKdBmNS86EeYOsI7pRL8UwpF2NSXE6kfs4nPaNP3Hk3FzcWewqti0xyuZc-SwJ5Sh2QiT8lpHZQjB-EvsvQxmn9klgV09MrtpFALycVSRYiggO7H9cw_abvW37CCkhRtPgBOLkFrd1NJa76YINpl25eDwhKvZU60UXsqJjn66MrYj_ubD8smIN8LrwCHY0NOxUv4-KfbHxf3aEsP3Ce-bSu-_pr8qDMc3iScn5InYkU9mdKySgaIUc1wHHAd7dQfjWXd8M5h8eS1LUu2z0y7qqd-1bnwhQmlBt3A',
+		expires_at: 1581017775,
 		token_type: 'Bearer',
-		refresh_token: '29b74a7654e1ae7c4fe48d075040252bc1d0bd240f1cab86df7cf96e49f76925',
-		session_state: '_gCQjDN5HuIDBwSaL1_oB8orzbi8wblhxa4g2vSEBrA.806bc9da80c25ece935173cf0373e60a'
+		refresh_token: '90da8e0cfc17b6a86ba48c795ef1b0d2a8ebe705e27694420333b45e30031974',
+		session_state: 'PeuR9hdAH0HYQVze02lHGhUGDbd_ZPfougWocaCVkHU.8b153c1835b9beaa12c34eca8e5e686d'
 	}));
 
 	// CREATE ACCOUNT
@@ -1280,18 +1280,299 @@ app.get('/organisation', async (req: Request, res: Response) => {
 	// }
 
 	// getusers
-	const ifModifiedSince = null;
-	const where = `FirstName.Contains("e")`;  // {String} Filter by an any element
-	const order = "FirstName";  // {String} Order by an any element
+	// const ifModifiedSince = null;
+	// const where = `FirstName.Contains("e")`;  // {String} Filter by an any element
+	// const order = "FirstName";  // {String} Order by an any element
 
+	// try {
+	// 	const response: any = await xero.accountingApi.getUsers(xeroTenantId, ifModifiedSince, where, order);
+	// 	console.log(response.body);
+	// 	res.send('wat');
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateaccount
+	// const accountID = "524bad01-a2e0-4c75-a859-51ce6222c69c";  // {UUID} Unique identifier for retrieving single object 
+	// const accounts: Accounts = { accounts: [{ code: "123456", name: "BarFoo", accountID: "524bad01-a2e0-4c75-a859-51ce6222c69c", type: AccountType.EXPENSE, description: "GoodBye World", taxType: "INPUT" }] };  // {Accounts} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateAccount(xeroTenantId, accountID, accounts);
+	// 	console.log(response.body);
+	// 	res.send('hello');
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatebanktransaction
+	// const bankTransactionID = "2355f1d6-91f3-4a4b-b7e2-d13b1f58c531";  // {UUID} Xero generated unique identifier for a bank transaction 
+	// const bankTransactions: BankTransactions = { bankTransactions: [{ type: BankTransaction.TypeEnum.SPEND, date: "2019-02-25", reference: "You just updated", status: BankTransaction.StatusEnum.AUTHORISED, bankTransactionID: "2355f1d6-91f3-4a4b-b7e2-d13b1f58c531", lineItems: [], contact: {}, bankAccount: { accountID: "ceef66a5-a545-413b-9312-78a53caadbc4" } }] };  // {BankTransactions} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateBankTransaction(xeroTenantId, bankTransactionID, bankTransactions);
+	// 	console.log(response.body);
+	// 	res.send('eh');
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatecontact
+	// const contactID = "54999de9-4690-4195-99bc-646970b23fb1";  // {UUID} Unique identifier for a Contact 
+	// const contacts: Contacts = { contacts: [{ contactID: "54999de9-4690-4195-99bc-646970b23fb1", name: "Thanos" }] };  // {Contacts} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateContact(xeroTenantId, contactID, contacts);
+	// 	console.log(response.body);
+	// 	res.send('snap');
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatecontactgroup
+	// const contactGroupID = "c49083fc-7a84-4233-9088-b7be9cc038b3";  // {UUID} Unique identifier for a Contact Group 
+	// const contactGroups: ContactGroups = { contactGroups: [{ name: "Vendor" }] };  // {ContactGroups} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateContactGroup(xeroTenantId, contactGroupID, contactGroups);
+	// 	console.log(response.body);
+	// 	res.send('yo');
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatecreditnote
+	// const creditNoteID = "cf612f68-0800-4add-8e39-27533962b892";  // {UUID} Unique identifier for a Credit Note 
+	// const creditNotes: CreditNotes = { creditNotes: [{ type: CreditNote.TypeEnum.ACCPAYCREDIT, contact: { contactID: "54999de9-4690-4195-99bc-646970b23fb1" }, date: "2019-01-05", status: CreditNote.StatusEnum.AUTHORISED, reference: "Mind stone", lineItems: [{ description: "Infinity Stones", quantity: 1.0, unitAmount: 100.0, accountCode: "400" }] }] };  // {CreditNotes} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateCreditNote(xeroTenantId, creditNoteID, creditNotes);
+	// 	console.log(response.body);
+	// 	res.send('ok');
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateemployee
+	// const employeeID = "54021264-9ebc-4702-8456-2c358d633168";  // {UUID} Unique identifier for a Employee 
+	// const employees: Employees = { employees: [{ employeeID: "54021264-9ebc-4702-8456-2c358d633168", firstName: "Natasha", lastName: "Romanoff" }] };  // {Employees} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateEmployee(xeroTenantId, employeeID, employees);
+	// 	console.log(response.body);
+	// 	res.send('avengers assemble');
+	// } catch (err) {
+	// 	console.log(JSON.stringify(err, null, 2));
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateexpenseclaim
+	// const expenseClaimID = "3e325afa-32d4-47a3-985f-38cff7b671fd";  // {UUID} Unique identifier for a ExpenseClaim 
+	// const expenseClaims: ExpenseClaims = { expenseClaims: [{ status: ExpenseClaim.StatusEnum.AUTHORISED, user: { userID: "d6362594-ffec-4435-abe8-469941ff1501" }, receipts: [{ receiptID: "5f687810-4189-4b64-b602-e4e68471448c", lineItems: [], contact: {}, date: "2020-01-01", user: {} }] }] };  // {ExpenseClaims} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateExpenseClaim(xeroTenantId, expenseClaimID, expenseClaims);
+	// 	console.log(response.body);
+	// 	res.send('plz werk');
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateinvoice
+	// const invoiceID = "b8baac72-d3c1-48f6-aeb9-7ebf31407030";  // {UUID} Unique identifier for an Invoice 
+	// const invoices: Invoices = { invoices: [{ reference: "I am Iron Man", invoiceID: "b8baac72-d3c1-48f6-aeb9-7ebf31407030", lineItems: [], contact: {}, type: Invoice.TypeEnum.ACCPAY }] };  // {Invoices} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateInvoice(xeroTenantId, invoiceID, invoices);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateitem
+	// const itemID = "d28dc221-0c12-47de-abfb-f7bb461163ec";  // {UUID} Unique identifier for an Item 
+	// const items: Items = { items: [{ code: "abc123", description: "Hello Xero", inventoryAssetAccountCode: "140" }] };  // {Items} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateItem(xeroTenantId, itemID, items);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatelinkedtransaction
+	// const linkedTransactionID = "19e45c06-6b42-4410-bada-f083b40d00de";  // {UUID} Unique identifier for a LinkedTransaction 
+	// const linkedTransactions: LinkedTransactions = { linkedTransactions: [{ sourceLineItemID: "724cae02-3fe4-4f14-ab92-73c2f9b54e8b", contactID: "4e3ae48f-b6fb-4097-aa3b-6bdc6ad9de5a" }] };  // {LinkedTransactions} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateLinkedTransaction(xeroTenantId, linkedTransactionID, linkedTransactions);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatemanualjournal
+	// const manualJournalID = "257e496f-44a9-4c9f-a30a-9dbb374ec339";  // {UUID} Unique identifier for a ManualJournal 
+	// const manualJournals: ManualJournals = { manualJournals: [{ narration: "Hello Xero", manualJournalID: "257e496f-44a9-4c9f-a30a-9dbb374ec339", journalLines: [] }] };  // {ManualJournals} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateManualJournal(xeroTenantId, manualJournalID, manualJournals);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateorcreatebanktransactions
+	// const bankTransactions: BankTransactions = { bankTransactions: [{ type: BankTransaction.TypeEnum.SPEND, contact: { contactID: "4e3ae48f-b6fb-4097-aa3b-6bdc6ad9de5a" }, lineItems: [{ description: "Foobar", quantity: 1.0, unitAmount: 20.0, accountCode: "400" }], bankAccount: { code: "090" } }] };  // {BankTransactions} 
+	// const summarizeErrors = true;  // {Boolean} If false return 200 OK and mix of successfully created obejcts and any with validation errors
+
+	// try {
+	// 	const response: any = await xero.accountingApi.updateOrCreateBankTransactions(xeroTenantId, bankTransactions, summarizeErrors);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateorcreatecontacts
+	// const contacts: Contacts = { contacts: [{ name: "Bruce Banner", emailAddress: "hulk@avengers.com", phones: [{ phoneType: Phone.PhoneTypeEnum.MOBILE, phoneNumber: "555-1212", phoneAreaCode: "415" }], paymentTerms: { bills: { day: 15, type: PaymentTermType.OFCURRENTMONTH }, sales: { day: 10, type: PaymentTermType.DAYSAFTERBILLMONTH } } }] };  // {Contacts} 
+	// const summarizeErrors = true;  // {Boolean} If false return 200 OK and mix of successfully created obejcts and any with validation errors
+
+	// try {
+	// 	const response: any = await xero.accountingApi.updateOrCreateContacts(xeroTenantId, contacts, summarizeErrors);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateorcreatecreditnotes
+	// const creditNotes: CreditNotes = { creditNotes: [{ type: CreditNote.TypeEnum.ACCPAYCREDIT, contact: { contactID: "e9565e5c-bef5-44b9-a322-82f07b7daf72" }, date: "2019-01-05", lineItems: [{ description: "Foobar", quantity: 2.0, unitAmount: 20.0, accountCode: "400" }] }] };  // {CreditNotes} 
+	// const summarizeErrors = true;  // {Boolean} If false return 200 OK and mix of successfully created obejcts and any with validation errors
+
+	// try {
+	// 	const response: any = await xero.accountingApi.updateOrCreateCreditNotes(xeroTenantId, creditNotes, summarizeErrors);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateorcreateinvoices
+	// const invoices: Invoices = { invoices: [{ type: Invoice.TypeEnum.ACCREC, contact: { contactID: "e9565e5c-bef5-44b9-a322-82f07b7daf72" }, lineItems: [{ description: "Acme Tires", quantity: 2.0, unitAmount: 20.0, accountCode: "400", taxType: "NONE", lineAmount: 40.0 }], date: "2019-03-11", dueDate: "2018-12-10", reference: "Website Design", status: Invoice.StatusEnum.AUTHORISED }] };  // {Invoices} 
+	// const summarizeErrors = true;  // {Boolean} If false return 200 OK and mix of successfully created obejcts and any with validation errors
+
+	// try {
+	// 	const response: any = await xero.accountingApi.updateOrCreateInvoices(xeroTenantId, invoices, summarizeErrors);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateorcreateitems
+	// const items: Items = { items: [{ code: "abcXYZ", name: "HelloWorld", description: "Foobar", inventoryAssetAccountCode: "140" }] };  // {Items} 
+	// const summarizeErrors = true;  // {Boolean} If false return 200 OK and mix of successfully created obejcts and any with validation errors
+
+	// try {
+	// 	const response: any = await xero.accountingApi.updateOrCreateItems(xeroTenantId, items, summarizeErrors);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateorcreatepurchaseorders
+	// const purchaseOrders: PurchaseOrders = { purchaseOrders: [{ contact: { contactID: "e9565e5c-bef5-44b9-a322-82f07b7daf72" }, lineItems: [{ description: "Foobar", quantity: 1.0, unitAmount: 20.0, accountCode: "710" }], date: "2019-03-13" }] };  // {PurchaseOrders} 
+	// const summarizeErrors = true;  // {Boolean} If false return 200 OK and mix of successfully created obejcts and any with validation errors
+
+	// try {
+	// 	const response: any = await xero.accountingApi.updateOrCreatePurchaseOrders(xeroTenantId, purchaseOrders, summarizeErrors);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updateorcreatequotes
+	// const quotes: Quotes = { quotes: [{ contact: { contactID: "e9565e5c-bef5-44b9-a322-82f07b7daf72" }, lineItems: [{ description: "Foobar", quantity: 1.0, unitAmount: 20.0, accountCode: "12775" }], date: "2020-02-01" }] };  // {Quotes} 
+	// const summarizeErrors = true;  // {Boolean} If false return 200 OK and mix of successfully created obejcts and any with validation errors
+
+	// try {
+	// 	const response: any = await xero.accountingApi.updateOrCreateQuotes(xeroTenantId, quotes, summarizeErrors);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatepurchaseorder
+	// const purchaseOrderID = "9694e8b3-e3c1-482f-af58-32e819b7bee4";  // {UUID} Unique identifier for a PurchaseOrder 
+	// const purchaseOrders: PurchaseOrders = { purchaseOrders: [{ attentionTo: "Peter Parker", lineItems: [], contact: {} }] };  // {PurchaseOrders} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updatePurchaseOrder(xeroTenantId, purchaseOrderID, purchaseOrders);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatequote
+	// const quoteID = "e8ab7405-2c6c-4bb1-9480-7cd5fccee801";  // {UUID} Unique identifier for an Quote 
+	// const quotes: Quotes = { quotes: [{ reference: "I am an update", contact: { contactID: "e9565e5c-bef5-44b9-a322-82f07b7daf72" }, lineItems: [{ description: "Foobar", quantity: 1.0, unitAmount: 20.0, accountCode: "12775" }], date: "2020-02-01" }] };  // {Quotes} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateQuote(xeroTenantId, quoteID, quotes);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatereceipt
+	// const receiptID = "9387dc5d-2adf-4d77-84e1-db693db502bd";  // {UUID} Unique identifier for a Receipt 
+	// const receipts: Receipts = { receipts: [{ user: { userID: "d6362594-ffec-4435-abe8-469941ff1501" }, reference: "Foobar", date: "2020-01-01", contact: {}, lineItems: [] }] };  // {Receipts} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateReceipt(xeroTenantId, receiptID, receipts);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatetaxrate
+	// const taxRates: TaxRates = { taxRates: [{ name: "State Tax NY", taxComponents: [{ name: "State Tax", rate: 2.25 }], status: TaxRate.StatusEnum.ACTIVE, reportTaxType: undefined }] };  // {TaxRates} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateTaxRate(xeroTenantId, taxRates);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatetrackingcategory
+	// const trackingCategoryID = "3f5f3182-1709-429d-9671-31ed15ff740b";  // {UUID} Unique identifier for a TrackingCategory 
+	// const trackingCategory: TrackingCategory = { name: "Avengers" };  // {TrackingCategory} 
+	// try {
+	// 	const response: any = await xero.accountingApi.updateTrackingCategory(xeroTenantId, trackingCategoryID, trackingCategory);
+	// 	console.log(response.body);
+	// } catch (err) {
+	// 	console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
+	// 	console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
+	// }
+
+	// updatetrackingoptions
+	const trackingCategoryID = "3f5f3182-1709-429d-9671-31ed15ff740b";  // {UUID} Unique identifier for a TrackingCategory 
+	const trackingOptionID = "0b41f0d6-1705-428c-9fe5-1d41cf295423";  // {UUID} Unique identifier for a Tracking Option 
+	const trackingOption: TrackingOption = { name: "Vision" };  // {TrackingOption} 
 	try {
-		const response: any = await xero.accountingApi.getUsers(xeroTenantId, ifModifiedSince, where, order);
+		const response: any = await xero.accountingApi.updateTrackingOptions(xeroTenantId, trackingCategoryID, trackingOptionID, trackingOption);
 		console.log(response.body);
-		res.send('wat');
 	} catch (err) {
 		console.log(`There was an ERROR! \n Status Code: ${err.response.statusCode}.`);
 		console.log(`Encountered the following Validation Errors: ${err.response.body.Elements[0].ValidationErrors.map((err, i) => `\n ${i + 1} ${err.Message}`).join(' ')}`);
 	}
+
+
 
 });
 
