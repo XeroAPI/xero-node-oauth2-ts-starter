@@ -73,7 +73,7 @@ const authenticationData: any = (req: Request, res: Response) => {
 	return {
 		decodedIdToken: req.session.decodedIdToken,
 		decodedAccessToken: req.session.decodedAccessToken,
-		accessToken: req.session.accessToken,
+		tokenSet: req.session.tokenSet,
 		allTenants: req.session.allTenants,
 		activeTenant: req.session.activeTenant,
 	};
@@ -97,14 +97,14 @@ app.get('/callback', async (req: Request, res: Response) => {
 		const url: string = `${redirectUrl}/${req.originalUrl}`;
 		await xero.setAccessTokenFromRedirectUri(url);
 
-		const accessToken = await xero.readTokenSet();
+		const tokenSet = await xero.readTokenSet();
 
-		const decodedIdToken: XeroJwt = jwtDecode(accessToken.id_token);
-		const decodedAccessToken: XeroAccessToken = jwtDecode(accessToken.access_token);
+		const decodedIdToken: XeroJwt = jwtDecode(tokenSet.id_token);
+		const decodedAccessToken: XeroAccessToken = jwtDecode(tokenSet.access_token);
 
 		req.session.decodedIdToken = decodedIdToken;
 		req.session.decodedAccessToken = decodedAccessToken;
-		req.session.accessToken = accessToken;
+		req.session.tokenSet = tokenSet;
 		req.session.allTenants = xero.tenantIds;
 		req.session.activeTenant = xero.tenantIds[0];
 
