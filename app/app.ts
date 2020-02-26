@@ -233,6 +233,8 @@ app.get('/refresh-token', async (req: Request, res: Response) => {
 		req.session.decodedIdToken = decodedIdToken;
 		req.session.decodedAccessToken = decodedAccessToken;
 		req.session.tokenSet = newTokenSet;
+		req.session.allTenants = xero.tenantIds;
+		req.session.activeTenant = xero.tenantIds[0];
 
 		const authData: any = authenticationData(req, res);
 		console.log(authData);
