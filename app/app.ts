@@ -2,7 +2,8 @@ require('dotenv').config();
 import express from 'express';
 import { Request, Response } from 'express';
 import jwtDecode from 'jwt-decode';
-import { XeroClient } from 'xero-node';
+import { TokenSet } from 'openid-client';
+import { XeroAccessToken, XeroIdToken, XeroClient } from 'xero-node';
 
 const session = require('express-session');
 
@@ -10,42 +11,6 @@ const client_id: string = process.env.CLIENT_ID;
 const client_secret: string = process.env.CLIENT_SECRET;
 const redirectUrl: string = process.env.REDIRECT_URI;
 const scopes: string = 'openid profile email accounting.settings accounting.reports.read accounting.journals.read accounting.contacts accounting.attachments accounting.transactions offline_access';
-
-interface XeroJwt {
-	nbf: number
-	exp: number
-	iss: string,
-	aud: string
-	iat: number
-	at_hash: string
-	sid: string
-	sub: string
-	auth_time: number
-	idp: string
-	xero_userid: string
-	global_session_id: string
-	preferred_username: string
-	email: string
-	given_name: string
-	family_name: string
-	amr: string[]
-};
-
-interface XeroAccessToken {
-	nbf: number
-	exp: number
-	iss: string
-	aud: string
-	client_id: string
-	sub: string
-	auth_time: number
-	idp: string
-	xero_userid: string
-	global_session_id: string
-	jti: string
-	scope: string[]
-	amr: string[]
-};
 
 const xero = new XeroClient({
 	clientId: client_id,
@@ -94,19 +59,18 @@ app.get('/connect', async (req: Request, res: Response) => {
 
 app.get('/callback', async (req: Request, res: Response) => {
 	try {
-		const url: string = `${redirectUrl}/${req.originalUrl}`;
-		await xero.setAccessTokenFromRedirectUri(url);
+		const tokenSet: TokenSet = await xero.apiCallback(req.url);
+		await xero.updateTenants();
 
-		const tokenSet = await xero.readTokenSet();
-
-		const decodedIdToken: XeroJwt = jwtDecode(tokenSet.id_token);
+		const decodedIdToken: XeroIdToken = jwtDecode(tokenSet.id_token);
 		const decodedAccessToken: XeroAccessToken = jwtDecode(tokenSet.access_token);
 
 		req.session.decodedIdToken = decodedIdToken;
 		req.session.decodedAccessToken = decodedAccessToken;
 		req.session.tokenSet = tokenSet;
-		req.session.allTenants = xero.tenantIds;
-		req.session.activeTenant = xero.tenantIds[0];
+		req.session.allTenants = xero.tenants;
+		// XeroClient is sorting tenants behind the scenes so that most recent / active connection is at index 0
+		req.session.activeTenant = xero.tenants[0];
 
 		const authData: any = authenticationData(req, res);
 
@@ -120,7 +84,7 @@ app.get('/callback', async (req: Request, res: Response) => {
 
 app.get('/organisation', async (req: Request, res: Response) => {
 	try {
-		const response: any = await xero.accountingApi.getOrganisations(req.session.activeTenant);
+		const response: any = await xero.accountingApi.getOrganisations(req.session.activeTenant.tenantId);
 		res.send(`Hello, ${response.body.organisations[0].name}`);
 	} catch (err) {
 		res.send('Sorry, something went wrong');

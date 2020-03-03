@@ -21,6 +21,7 @@
     "@types/express": "^4.17.2",
     "@types/express-session": "^1.15.16",
     "@types/node": "^13.1.8",
+    "openid-client": "^3.14.0",
     "ts-lint": "^4.5.1",
     "ts-node-dev": "^1.0.0-pre.44",
     "typescript": "^3.7.5"
