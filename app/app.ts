@@ -84,6 +84,8 @@ app.get('/callback', async (req: Request, res: Response) => {
 
 app.get('/organisation', async (req: Request, res: Response) => {
 	try {
+		const tokenSet: TokenSet = await xero.readTokenSet();
+		console.log(tokenSet.expired() ? 'expired' : 'valid');
 		const response: any = await xero.accountingApi.getOrganisations(req.session.activeTenant.tenantId);
 		res.send(`Hello, ${response.body.organisations[0].name}`);
 	} catch (err) {
