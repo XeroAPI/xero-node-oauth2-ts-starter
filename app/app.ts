@@ -57,28 +57,62 @@ app.get('/', (req: Request, res: Response) => {
 		res.redirect('/home')
 	} else {
 		res.send(`
-			<h3>Existing User? Sign In</h3>
-			<form action="/sign-in">
-				<label for="email">Email:</label>
-				<input type="text" id="email" name="email"><br><br>
-				<label for="password">Password:</label>
-				<input type="password" id="password" name="password"><br><br>
-				<input type="submit" value="Submit">
-			</form>
-			<h3>New User? Sign Up</h3>
-			<form action="/sign-up">
-				<label for="fname">First name:</label>
-				<input type="text" id="fname" name="fname"><br><br>
-				<label for="lname">Last name:</label>
-				<input type="text" id="lname" name="lname"><br><br>
-				<label for="email">Email:</label>
-				<input type="text" id="email" name="email"><br><br>
-				<label for="password">Password:</label>
-				<input type="password" id="password" name="password"><br><br>
-				<input type="submit" value="Submit">
-			</form>
-			<h3>Or...</h3>
-			<a href='/connect'>Sign In with Xero</a>
+		<!doctype html>
+			<html lang="en">
+				<head>
+					<!-- Required meta tags -->
+					<meta charset="utf-8">
+					<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+					<!-- Bootstrap CSS -->
+					<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+				</head>
+				<body>
+				<div style="margin: 50px;">
+					<h3>Existing User? Sign In</h3>
+					<form class="form-inline" action="/sign-in">
+						<div class="form-group mx-3 mb-2">
+							<label for="email" class="sr-only">Email:</label>
+							<input type="text" class="form-control" id="email" name="email" placeholder="email@example.com">
+						</div>
+						<div class="form-group mx-3 mb-2">
+							<label for="password" class="sr-only">Password:</label>
+							<input type="password" class="form-control" id="password" name="password" placeholder="password">
+						</div>
+						<button type="submit" class="btn btn-primary mb-2">Submit</button>
+					</form>
+					<h3>New User? Sign Up</h3>
+					<form class="form-inline" action="/sign-up">
+						<div class="form-group mx-3 mb-2">
+							<label for="fname" class="sr-only">First name:</label>
+							<input type="text" class="form-control" id="fname" name="fname" placeholder="first name">
+						</div>
+						<div class="form-group mx-3 mb-2">
+							<label for="lname" class="sr-only">Last name:</label>
+							<input type="text" class="form-control" id="lname" name="lname" placeholder="last name">
+						</div>
+						<div class="form-group mx-3 mb-2">
+							<label for="email" class="sr-only">Email:</label>
+							<input type="text" class="form-control" id="email" name="email" placeholder="email@example.com">
+						</div>
+						<div class="form-group mx-3 mb-2">
+							<label for="password" class="sr-only">Password:</label>
+							<input type="password" class="form-control" id="password" name="password" placeholder="password">
+						</div>
+						<button type="submit" class="btn btn-primary mb-2">Submit</button>
+					</form>
+					<h3>Or...</h3>
+					<span class="mx-3" data-xero-sso data-href="/connect" data-label="Sign in with Xero"></span>
+				</div>
+							<script src="https://edge.xero.com/platform/sso/xero-sso.js" async defer></script>
+
+					<!-- Optional JavaScript -->
+					<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+					<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+					<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+					<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
+				</body>
+			</html>
 		`);
 	}
 });
@@ -161,8 +195,41 @@ app.get('/home', async (req: Request, res: Response) => {
 	try {
 		if (req.session.isLoggedIn && req.session.user) {
 			res.send(`
-			Hello, ${req.session.user.fname} ${req.session.user.lname}
-			${req.session.tokenSet ? "<a href='/organisation'>Get Xero Org</a>" : "<a href='/connect'>Connect to Xero</a>"}
+				<!doctype html>
+				<html lang="en">
+					<head>
+						<!-- Required meta tags -->
+						<meta charset="utf-8">
+						<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+						<!-- Bootstrap CSS -->
+						<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+					</head>
+					<body>
+						<div style="margin: 50px;">
+							<div class="jumbotron">
+								<h1 class="display-4">Hello, ${req.session.user.fname} ${req.session.user.lname}</h1>
+								${req.session.tokenSet ?
+					`<p class="lead">You're connected to Xero</p>
+								<hr class="my-4">
+								<p>If you want to see your Org data just click the button</p>
+								<a class="btn btn-primary btn-lg" href="/organisation" role="button">See My Org Data</a>`
+					:
+					`<p class="lead">I see you logged in via the standard email/password option</p>
+								<hr class="my-4">
+								<p>To see your Xero org data you'll need to connect to Xero</p>
+								<a class="btn btn-primary btn-lg" href="/connect" role="button">Connect to Xero</a>`
+				}
+							</div>
+						</div>
+
+						<!-- Optional JavaScript -->
+						<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+						<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+						<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+						<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
+					</body>
+				</html>
 			`);
 		} else {
 			res.redirect('/');
