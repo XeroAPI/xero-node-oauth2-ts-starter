@@ -4,6 +4,7 @@ import { Request, Response } from 'express';
 import jwtDecode from 'jwt-decode';
 import { TokenSet } from 'openid-client';
 import { XeroAccessToken, XeroIdToken, XeroClient } from 'xero-node';
+import request = require('request');
 
 const session = require('express-session');
 const lowdb = require('lowdb');
@@ -12,7 +13,8 @@ const adapter = new FileSync('db.json');
 const db = lowdb(adapter);
 
 db.setState({});
-db.defaults({ users: [{ fname: 'Joe', lname: 'Exotic', email: 'thetigerking@hotmail.com', password: 'c@r0leb@$kin' }] }).write();
+db.defaults({ users: [{ fname: 'Joe', lname: 'Exotic', email: 'tigerking@gmail.com', password: 'carolebaskin' }] }).write();
+console.log(db.get('users').value());
 
 const client_id: string = process.env.CLIENT_ID;
 const client_secret: string = process.env.CLIENT_SECRET;
@@ -127,6 +129,7 @@ app.get('/sign-in', async (req: Request, res: Response) => {
 		} else {
 			res.send('Credentials no good');
 		};
+		console.log(db.get('users').value());
 	} catch (err) {
 		res.send('Sorry, something went wrong');
 	}
@@ -146,6 +149,32 @@ app.get('/sign-up', async (req: Request, res: Response) => {
 		console.log(db.get('users').value());
 	} catch (err) {
 		res.send('Sorry, something went wrong');
+	}
+});
+
+app.get('/sign-out', async (req: Request, res: Response) => {
+	try {
+		if (req.session.activeTenant) {
+			const response = await request({
+				method: 'DELETE',
+				uri: `https://api.xero.com/connections/${req.session.activeTenant.id}`,
+				auth: {
+					bearer: req.session.tokenSet.access_token
+				},
+				json: true
+			});
+		}
+		req.session.decodedIdToken = undefined;
+		req.session.decodedAccessToken = undefined;
+		req.session.tokenSet = undefined;
+		req.session.allTenants = undefined;
+		req.session.activeTenant = undefined;
+		req.session.isLoggedIn = false;
+		req.session.user = undefined;
+		res.redirect('/');
+	} catch (err) {
+		res.json(err);
+		// res.send('Sorry, something went wrong');
 	}
 });
 
@@ -184,7 +213,7 @@ app.get('/callback', async (req: Request, res: Response) => {
 			req.session.isLoggedIn = true;
 			req.session.user = user;
 		}
-
+		console.log(db.get('users').value());
 		res.redirect('/home');
 	} catch (err) {
 		res.send('Sorry, something went wrong');
@@ -194,7 +223,10 @@ app.get('/callback', async (req: Request, res: Response) => {
 app.get('/home', async (req: Request, res: Response) => {
 	try {
 		if (req.session.isLoggedIn && req.session.user) {
-			res.send(`
+			if (req.session.tokenSet) {
+				res.redirect('/organisation');
+			} else {
+				res.send(`
 				<!doctype html>
 				<html lang="en">
 					<head>
@@ -209,17 +241,11 @@ app.get('/home', async (req: Request, res: Response) => {
 						<div style="margin: 50px;">
 							<div class="jumbotron">
 								<h1 class="display-4">Hello, ${req.session.user.fname} ${req.session.user.lname}</h1>
-								${req.session.tokenSet ?
-					`<p class="lead">You're connected to Xero</p>
-								<hr class="my-4">
-								<p>If you want to see your Org data just click the button</p>
-								<a class="btn btn-primary btn-lg" href="/organisation" role="button">See My Org Data</a>`
-					:
-					`<p class="lead">I see you logged in via the standard email/password option</p>
+								<p class="lead">I see you logged in via the standard email/password option</p>
 								<hr class="my-4">
 								<p>To see your Xero org data you'll need to connect to Xero</p>
-								<a class="btn btn-primary btn-lg" href="/connect" role="button">Connect to Xero</a>`
-				}
+								<a class="btn btn-primary btn-lg" href="/connect" role="button">Connect to Xero</a>
+								<a class="btn btn-info btn-lg" href="/sign-out" role="button">Sign Out</a>
 							</div>
 						</div>
 
@@ -231,6 +257,7 @@ app.get('/home', async (req: Request, res: Response) => {
 					</body>
 				</html>
 			`);
+			}
 		} else {
 			res.redirect('/');
 		}
@@ -243,7 +270,38 @@ app.get('/organisation', async (req: Request, res: Response) => {
 	try {
 		if (req.session.activeTenant) {
 			const response: any = await xero.accountingApi.getOrganisations(req.session.activeTenant.tenantId);
-			res.send(`Hello, ${response.body.organisations[0].name}`);
+			const org = response.body.organisations[0];
+			res.send(`
+				<!doctype html>
+				<html lang="en">
+					<head>
+						<!-- Required meta tags -->
+						<meta charset="utf-8">
+						<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+						<!-- Bootstrap CSS -->
+						<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+					</head>
+					<body>
+						<div style="margin: 50px;">
+							<div class="jumbotron">
+								<h1 class="display-4">${org.name}</h1>
+								<p>Org ID: ${org.organisationID}</p>
+								<hr class="my-4">
+								<p>Street Address: ${org.addresses[0].addressLine1}, ${org.addresses[0].city}, ${org.addresses[0].region}, ${org.addresses[0].postalCode} ${org.addresses[0].country}</p>
+								<p>Tax Number: ${org.taxNumber}</p>
+								<a class="btn btn-info btn-lg" href="/sign-out" role="button">Sign Out</a>
+							</div>
+						</div>
+
+						<!-- Optional JavaScript -->
+						<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+						<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+						<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+						<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
+					</body>
+				</html>
+			`);
 		} else {
 			res.send(`You need to connect to Xero first <a href='/connect'>Connect to Xero</a`)
 		}
