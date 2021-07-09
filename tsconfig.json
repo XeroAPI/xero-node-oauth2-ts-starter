@@ -7,8 +7,14 @@
     "outDir": "./build",
     "esModuleInterop": true,
   },
-  "lib": ["es2015"],
+  "lib": [
+    "es2015"
+  ],
   "exclude": [
     "node_modules"
+  ],
+  "typeRoots": [
+    "./types",
+    "./node_modules/@types"
   ]
 }
