@@ -59,6 +59,7 @@ app.get('/connect', async (req: Request, res: Response) => {
 
 app.get('/callback', async (req: Request, res: Response) => {
 	try {
+		//await xero.initialize(); // this will fix the issue of `callbackParams of undefined`
 		const tokenSet: TokenSet = await xero.apiCallback(req.url);
 		await xero.updateTenants();
 
@@ -78,7 +79,7 @@ app.get('/callback', async (req: Request, res: Response) => {
 
 		res.redirect('/organisation');
 	} catch (err) {
-		res.send('Sorry, something went wrong');
+		res.send(`Sorry, something went wrong.\n${err}`);
 	}
 });
 
