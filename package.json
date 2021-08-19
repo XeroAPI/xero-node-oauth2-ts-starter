@@ -6,7 +6,7 @@
   "scripts": {
     "tsc": "tsc",
     "dev": "ts-node-dev --respawn --transpile-only ./app/app.ts",
-    "prod": "tsc && node ./build/app.js"
+    "prod": "tsc && node ./build/app/app.js"
   },
   "author": "Xero Platform Team",
   "license": "MIT",
