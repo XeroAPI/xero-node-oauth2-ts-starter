@@ -3,7 +3,7 @@ import express from 'express';
 import { Request, Response } from 'express';
 import jwtDecode from 'jwt-decode';
 import { TokenSet } from 'openid-client';
-import { XeroAccessToken, XeroIdToken, XeroClient, Contact, LineItem, Invoice, Invoices } from 'xero-node';
+import { XeroAccessToken, XeroIdToken, XeroClient, Contact, LineItem, Invoice, Invoices, Phone, Contacts } from 'xero-node';
 
 const session = require('express-session');
 
@@ -122,6 +122,29 @@ app.get('/invoice', async (req: Request, res: Response) => {
 		const response = await xero.accountingApi.createInvoices(req.session.activeTenant.tenantId, invoices);
 		console.log('invoices: ', response.body.invoices);
 		res.json(response.body.invoices);
+	} catch (err) {
+		res.json(err);
+	}
+});
+
+app.get('/contact', async (req: Request, res: Response) => {
+	try {
+		const contact: Contact = {
+			name: "Bruce Banner",
+			emailAddress: "hulk@avengers.com",
+			phones: [
+				{
+					phoneNumber:'555-555-5555',
+					phoneType: Phone.PhoneTypeEnum.MOBILE
+				}
+			]
+		};
+		const contacts: Contacts = {  
+			contacts: [contact]
+		}; 
+		const response = await xero.accountingApi.createContacts(req.session.activeTenant.tenantId, contacts);
+		console.log('contacts: ', response.body.contacts);
+		res.json(response.body.contacts);
 	} catch (err) {
 		res.json(err);
 	}
