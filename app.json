@@ -1,0 +1,7 @@
+{
+  "apps" : [{
+    "script"    : "./build/app/app.js",
+    "instances" : "max",
+    "exec_mode" : "cluster" 
+  }]
+} 
