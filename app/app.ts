@@ -3,7 +3,7 @@ import express from 'express';
 import { Request, Response } from 'express';
 import jwtDecode from 'jwt-decode';
 import { TokenSet } from 'openid-client';
-import { XeroAccessToken, XeroIdToken, XeroClient } from 'xero-node';
+import { XeroAccessToken, XeroIdToken, XeroClient, Contact, LineItem, Invoice, Invoices } from 'xero-node';
 
 const session = require('express-session');
 
@@ -90,6 +90,40 @@ app.get('/organisation', async (req: Request, res: Response) => {
 		res.send(`Hello, ${response.body.organisations[0].name}`);
 	} catch (err) {
 		res.send('Sorry, something went wrong');
+	}
+});
+
+app.get('/invoice', async (req: Request, res: Response) => {
+	try {
+		const contacts = await xero.accountingApi.getContacts(req.session.activeTenant.tenantId);
+		console.log('contacts: ', contacts.body.contacts);
+		const where = 'Status=="ACTIVE" AND Type=="SALES"';
+		const accounts = await xero.accountingApi.getAccounts(req.session.activeTenant.tenantId, null, where);
+		console.log('accounts: ', accounts.body.accounts);
+		const contact: Contact = {
+			contactID: contacts.body.contacts[0].contactID
+		};
+		const lineItem: LineItem = {
+			accountCode: accounts.body.accounts[0].accountID,
+			description: 'consulting',
+			quantity: 1.0,
+			unitAmount: 10.0
+		};
+		const invoice: Invoice = {
+			lineItems: [lineItem],
+			contact: contact,
+			dueDate: '2021-09-25',
+			date: '2021-09-24',
+			type: Invoice.TypeEnum.ACCREC
+		};
+		const invoices: Invoices = {
+			invoices: [invoice]
+		};
+		const response = await xero.accountingApi.createInvoices(req.session.activeTenant.tenantId, invoices);
+		console.log('invoices: ', response.body.invoices);
+		res.json(response.body.invoices);
+	} catch (err) {
+		res.json(err);
 	}
 });
 
