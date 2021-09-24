@@ -104,7 +104,7 @@ app.get('/invoice', async (req: Request, res: Response) => {
 			contactID: contacts.body.contacts[0].contactID
 		};
 		const lineItem: LineItem = {
-			accountCode: accounts.body.accounts[0].accountID,
+			accountID: accounts.body.accounts[0].accountID,
 			description: 'consulting',
 			quantity: 1.0,
 			unitAmount: 10.0
