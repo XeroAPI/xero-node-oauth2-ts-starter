@@ -5,22 +5,7 @@ import jwtDecode from 'jwt-decode';
 // import { TokenSet } from 'openid-client';
 import { XeroAccessToken, TokenSet, XeroIdToken, XeroClient, Contact, LineItem, Invoice, Invoices, Phone, Contacts } from 'xero-node';
 import session from 'express-session';
-import fs from 'fs';
-import { initializeApp } from 'firebase/app'
-import { getFirestore, doc, updateDoc, getDoc } from 'firebase/firestore/lite';
-
-const firebaseConfig = {
-  apiKey: process.env.VUE_APP_API_KEY,
-  authDomain: process.env.VUE_APP_AUTH_DOMAIN,
-  projectId: process.env.VUE_APP_PROJECT_ID,
-  storageBucket: process.env.VUE_APP_STORAGE_BUCKET,
-  messagingSenderId: process.env.VUE_APP_MESSAGING_SENDER_ID,
-  appId: process.env.VUE_APP_ID,
-  measurementId: process.env.VUE_APP_MEASUREMENT_ID,
-};
-
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp);
+import { notDeepStrictEqual } from 'assert';
 
 const clientId: string = process.env.CLIENT_ID;
 const clientSecret: string = process.env.CLIENT_SECRET;
@@ -58,18 +43,21 @@ app.use(session({
 }));
 
 async function authenticate(req: Request): Promise<any> {
-	const docRef = doc(db, "users", USER_EMAIL);
-	const docSnap = await getDoc(docRef);
+	// TODO: get token from session
+	// check if exists
+	// if yes, parse token
+	// if not, redirect to connect url
+	// let oldToken = null
+	// if(docSnap.data().xeroToken) {
+	// 	oldToken = JSON.parse(docSnap.data().xeroToken);
+	// 	// TODO: Check if token doesn't exist, redirect to connect url
+	// } else {
+	// 	console.log("No such document!");
+	// 	console.log("Redirecting to connect url");
+	// 	// const consentUrl: string = await xero.buildConsentUrl();
+	// 	// res.redirect(consentUrl);
+	// }
 	let oldToken = null
-	if(docSnap.data().xeroToken) {
-		oldToken = JSON.parse(docSnap.data().xeroToken);
-		// TODO: Check if token doesn't exist, redirect to connect url
-	} else {
-		console.log("No such document!");
-		console.log("Redirecting to connect url");
-		// const consentUrl: string = await xero.buildConsentUrl();
-		// res.redirect(consentUrl);
-	}
 
 	xero.setTokenSet(oldToken);
 	let tokenSet: TokenSet = xero.readTokenSet();
@@ -80,8 +68,8 @@ async function authenticate(req: Request): Promise<any> {
 		tokenSet = await xero.refreshWithRefreshToken(clientId, clientSecret, tokenSet.refresh_token);
 		xero.setTokenSet(tokenSet);
 		// save the new tokenset
-		const dbUserRef = doc(db, 'users', USER_EMAIL)
-		await updateDoc(dbUserRef, { xeroToken: JSON.stringify(tokenSet) })
+		// const dbUserRef = doc(db, 'users', USER_EMAIL)
+		// await updateDoc(dbUserRef, { xeroToken: JSON.stringify(tokenSet) })
 	}
 
 	const decodedIdToken: XeroIdToken = jwtDecode(tokenSet.id_token);
@@ -148,12 +136,9 @@ app.get('/callback', async (req: Request, res: Response) => {
 		console.log('updating tenants')
 		await xero.updateTenants();
 
-		// Setting xero tokenSet to firestore
 		// TODO: Get user uid from req.url param to set tokenSet to firestore
-		const dbUserRef = doc(db, 'users', USER_EMAIL)
-		await updateDoc(dbUserRef, { xeroToken: JSON.stringify(tokenSet) })
 
-		// TODO: Redirect to Accounts dashboard?
+		// TODO: Redirect to Accounts dashboard if no Xero tokenSet
 		res.redirect('/organisation');
 	} catch (err) {
 		res.send('Sorry, something went wrong (callback)');
