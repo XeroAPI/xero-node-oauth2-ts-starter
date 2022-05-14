@@ -5,7 +5,6 @@ import jwtDecode from 'jwt-decode';
 // import { TokenSet } from 'openid-client';
 import { XeroAccessToken, TokenSet, XeroIdToken, XeroClient, Contact, LineItem, Invoice, Invoices, Phone, Contacts } from 'xero-node';
 import session from 'express-session';
-import { notDeepStrictEqual } from 'assert';
 
 const clientId: string = process.env.CLIENT_ID;
 const clientSecret: string = process.env.CLIENT_SECRET;
@@ -47,7 +46,8 @@ async function authenticate(req: Request): Promise<any> {
 	// check if exists
 	// if yes, parse token
 	// if not, redirect to connect url
-	// let oldToken = null
+	let oldToken = null
+
 	// if(docSnap.data().xeroToken) {
 	// 	oldToken = JSON.parse(docSnap.data().xeroToken);
 	// 	// TODO: Check if token doesn't exist, redirect to connect url
@@ -57,7 +57,6 @@ async function authenticate(req: Request): Promise<any> {
 	// 	// const consentUrl: string = await xero.buildConsentUrl();
 	// 	// res.redirect(consentUrl);
 	// }
-	let oldToken = null
 
 	xero.setTokenSet(oldToken);
 	let tokenSet: TokenSet = xero.readTokenSet();
