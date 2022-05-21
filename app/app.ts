@@ -5,6 +5,9 @@ import jwtDecode from 'jwt-decode';
 // import { TokenSet } from 'openid-client';
 import { XeroAccessToken, TokenSet, XeroIdToken, XeroClient, Contact, LineItem, Invoice, Invoices, Phone, Contacts } from 'xero-node';
 import session from 'express-session';
+//libraries for posting data
+import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
 
 const clientId: string = process.env.CLIENT_ID;
 const clientSecret: string = process.env.CLIENT_SECRET;
@@ -33,24 +36,44 @@ xero.initialize()
 const app: express.Application = express();
 
 app.use(express.static(__dirname + '/build'));
-
 app.use(session({
-	secret: process.env.SECRET, //TODO: randomly generated secret
+	secret: process.env.SECRET,
 	resave: false,
 	saveUninitialized: true,
 	cookie: { secure: false },
 }));
+app.use(cookieParser());
+app.use(bodyParser.json());
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*"); // update to match the domain you will make the request from
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+  res.header(
+    "Access-Control-Allow-Credentials",
+    true
+  );
+  res.header("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS");
+
+  next();
+});
+
+function flatten(arr) {
+  return arr.reduce(function (flat, toFlatten) {
+    return flat.concat(Array.isArray(toFlatten) ? flatten(toFlatten) : toFlatten);
+  }, []);
+}
 
 async function authenticate(req: Request): Promise<any> {
 	// TODO: get token from session
 	// check if exists
 	// if yes, parse token
-	// if not, redirect to connect url
+  
 	let oldToken = null
-
-	// if(docSnap.data().xeroToken) {
-	// 	oldToken = JSON.parse(docSnap.data().xeroToken);
-	// 	// TODO: Check if token doesn't exist, redirect to connect url
+  oldToken = req.body.token
+  
+  // if not, redirect to connect url
 	// } else {
 	// 	console.log("No such document!");
 	// 	console.log("Redirecting to connect url");
@@ -66,9 +89,7 @@ async function authenticate(req: Request): Promise<any> {
 		console.log('expired. refreshing now')
 		tokenSet = await xero.refreshWithRefreshToken(clientId, clientSecret, tokenSet.refresh_token);
 		xero.setTokenSet(tokenSet);
-		// save the new tokenset
-		// const dbUserRef = doc(db, 'users', USER_EMAIL)
-		// await updateDoc(dbUserRef, { xeroToken: JSON.stringify(tokenSet) })
+    // TODO: If too expired, redirect to consent url
 	}
 
 	const decodedIdToken: XeroIdToken = jwtDecode(tokenSet.id_token);
@@ -78,11 +99,11 @@ async function authenticate(req: Request): Promise<any> {
 	req.session.decodedAccessToken = decodedAccessToken;
 	req.session.tokenSet = tokenSet;
 	req.session.allTenants = xero.tenants;
-	// XeroClient is sorting tenants behind the scenes so that most recent / active connection is at index 0
 	req.session.activeTenant = xero.tenants[0];
 }
 
 async function getContact(req) {
+  const job = req.body.job
 	const contacts = await xero.accountingApi.getContacts(req.session.activeTenant.tenantId, undefined, `EmailAddress="${job.client.emailAddress}"`);
 	if (contacts.body.contacts.length > 0) {
 		return contacts.body.contacts[0].contactID
@@ -90,12 +111,10 @@ async function getContact(req) {
 		const contact: Contact = {
 			name: job.client.contactName,
 			emailAddress: job.client.emailAddress,
-			phones: [
-				{
-					phoneNumber:job.client.contactNumber,
-					phoneType: Phone.PhoneTypeEnum.MOBILE
-				}
-			]
+			phones: [{
+        phoneNumber:job.client.contactNumber,
+        phoneType: Phone.PhoneTypeEnum.MOBILE
+      }]
 		};
 		const contacts: Contacts = {  
 			contacts: [contact]
@@ -104,25 +123,45 @@ async function getContact(req) {
 	}
 }
 
-// const authenticationData: any = (req: Request, res: Response) => {
-
-// 	return {
-// 		decodedIdToken: req.session.decodedIdToken,
-// 		decodedAccessToken: req.session.decodedAccessToken,
-// 		tokenSet: req.session.tokenSet,
-// 		allTenants: req.session.allTenants,
-// 		activeTenant: req.session.activeTenant,
-// 	};
-// };
+function generateInvoice(req, contact) {
+  const job = req.body.job
+  let lineItems = flatten(job.routes.map(route => route.vehicles.map(vehicle => {
+    const car = `${vehicle.car} / ${route.freightCode.code}`;
+    const lineItem: LineItem = {
+      description: route.po ? `PO: ${route.po} Vehicle: ${car}` : `${car}`,
+      quantity: 1,
+      unitAmount: route.freightCode.cost,
+      accountCode: "200",
+      taxType: "OUTPUT",
+      taxAmount: route.freightCode.cost * 0.1
+    }
+    return lineItem
+  })));
+  
+  return [{
+    type: Invoice.TypeEnum.ACCREC,
+    reference: `PO Numbers: ${job.routes.map(route => route.po).join(', ')}`,
+    lineItems,
+    contact: { contactID: contact },
+    lineAmountTypes: 'Exclusive', // GST exclusive
+    // TODO: set invoice number for production
+    // invoiceNumber: job.jobNumber,
+    invoiceNumber: Date.now().toString(),
+    DueDate: Date.now() + 604800,
+    Date: Date.now(),
+  }];
+}
 
 app.get('/', (req: Request, res: Response) => {
-	res.send(`<a href='/connect'>Connect to Xero</a>`);
+	res.send(`<a href='/connect'>Connect to Xero meow meow</a>`);
 });
 
 app.get('/connect', async (req: Request, res: Response) => {
 	try {
 		const consentUrl: string = await xero.buildConsentUrl();
-		res.redirect(consentUrl);
+    console.log('connecting')
+    res.status(200);
+    res.json({ url: consentUrl });    
 	} catch (err) {
 		res.send('Sorry, something went wrong (connect)');
 	}
@@ -132,73 +171,36 @@ app.get('/callback', async (req: Request, res: Response) => {
 	try {
 		console.log('calling back')
 		const tokenSet: TokenSet = await xero.apiCallback(req.url);
-		console.log('updating tenants')
 		await xero.updateTenants();
+    
+    console.log('converting token to cookie string uri')
+    const tokenString = encodeURI(JSON.stringify(tokenSet))
+    // Set Cookie:
+    res.cookie('xeroToken', tokenString, { maxAge: 900000, httpOnly: true });
 
-		// TODO: Get user uid from req.url param to set tokenSet to firestore
-
-		// TODO: Redirect to Accounts dashboard if no Xero tokenSet
-		res.redirect('/organisation');
+		// TODO: Redirect to https://goochtransport.netlify.app/#/accounts if Xero tokenSet exists
+    // Else redirect to consent url
+    // res.redirect('https://goochtransport.netlify.app/#/accounts')
+    res.redirect(`http://localhost:8080/#/dev?src=${tokenString}`)
+    // TODO: clear the cookie
 	} catch (err) {
 		res.send('Sorry, something went wrong (callback)');
 	}
 });
 
-app.get('/organisation', async (req: Request, res: Response) => {
-	try {
-		req: Request = await authenticate(req);
-		const response: any = await xero.accountingApi.getOrganisations(req.session.activeTenant.tenantId);
-		res.send(`Hello, ${response.body.organisations[0].name}`);
-	} catch (err) {	
-		console.log(err)
-		res.send('Sorry, something went wrong');
-	}
-});
-
-
-app.get("/invoice", async (req: Request, res: Response) => {
-	// TODO: Pass dbUser uid to authenticate function
-	console.log("authenticating")
+app.post("/postinvoice", async (req: Request, res: Response) => {
 	req: Request = await authenticate(req);
-	// TODO: pass contact details to getContacts function
-	console.log("check if contact exists. Create one if not")
-	let contact: Contact = await getContact(req)
-
 	try {
-		let lineItems = job.routes.map(route => route.vehicles.map(vehicle => {
-			const car = `${vehicle.car} / ${route.freightCode.code}`;
-			const lineItem: LineItem = {
-				description: route.po ? `PO: ${route.po} Vehicle: ${car}` : `${car}`,
-				quantity: 1,
-				unitAmount: route.freightCode.cost,
-				accountCode: "200",
-				taxType: "OUTPUT",
-				taxAmount: route.freightCode.cost * 0.1
-			}
-			return lineItem
-		})).flat();
-		const invoices: Invoice[] = [{
-			type: Invoice.TypeEnum.ACCREC,
-			reference: `PO Numbers: ${job.routes.map(route => route.po).join(', ')}`,
-			lineItems,
-			contact,
-			lineAmountTypes: 'Exclusive',
-			// invoiceNumber: job.jobNumber,
-			invoiceNumber: Date.now().toString(),
-			DueDate: Date.now() + 604800,
-			Date: Date.now(),
-		}];
-		// TODO: add optional properties to invoice object:
-		// 	status: "AUTHORISED",
-
+    const contact: Contact = await getContact(req)
+	  const invoices = generateInvoice(req, contact)	
 		const response = await xero.accountingApi.createInvoices(req.session.activeTenant.tenantId, { invoices });
-		// console.log('invoices: ', response.body.invoices);
-		res.json(response.body.invoices);
+    response.body.tokenSet = req.session.tokenSet
+		res.json(response.body);
 	} catch (err) {
-		console.log('error')
+		console.log('error in /postinvoice')
 		res.json(err);
 	}
-});
+})
 
 const PORT = process.env.PORT || 7000;
 

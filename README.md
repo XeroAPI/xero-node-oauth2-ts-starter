@@ -1,7 +1,5 @@
-# Xero NodeJS OAuth 2.0 Typescript Starter
-This NodeJS Typescript project is meant to get you started interacting with the Xero API using the xero-node SDK and OAuth 2.0. 
-
-Note: this project was built using Visual Studio Code and NodeJS
+# NodeJs Typescript server acting as an interface between Gooch Transport app's frontend and Xero
+Built with NodeJs Typescript
 
 ## How to use
 
