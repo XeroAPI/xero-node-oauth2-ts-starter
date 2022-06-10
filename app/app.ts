@@ -9,6 +9,8 @@ import session from 'express-session';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 
+console.log('meowmeow')
+
 const clientId: string = process.env.CLIENT_ID;
 const clientSecret: string = process.env.CLIENT_SECRET;
 const redirectUrl: string = process.env.REDIRECT_URI;
@@ -72,6 +74,9 @@ async function authenticate(req: Request): Promise<any> {
   
 	let oldToken = null
   oldToken = req.body.token
+  if (typeof req.body.token === 'string') {
+    oldToken = JSON.parse(oldToken)
+  }
   
   // if not, redirect to connect url
 	// } else {
@@ -80,30 +85,36 @@ async function authenticate(req: Request): Promise<any> {
 	// 	// const consentUrl: string = await xero.buildConsentUrl();
 	// 	// res.redirect(consentUrl);
 	// }
-
 	xero.setTokenSet(oldToken);
+  console.log('token read')
 	let tokenSet: TokenSet = xero.readTokenSet();
 	console.log(tokenSet.expired() ? 'expired' : 'valid');
 
 	if(tokenSet.expired()) {
 		console.log('expired. refreshing now')
-		tokenSet = await xero.refreshWithRefreshToken(clientId, clientSecret, tokenSet.refresh_token);
-		xero.setTokenSet(tokenSet);
+		tokenSet = await xero.refreshWithRefreshToken(clientId, clientSecret, tokenSet.refresh_token).catch(err => console.log(err));
+    console.log('refreshed')
+    if (!tokenSet) {
+      req.redirectNeeded = true
+    } else {
+		  xero.setTokenSet(tokenSet);
+    }
     // TODO: If too expired, redirect to consent url
 	}
-
-	const decodedIdToken: XeroIdToken = jwtDecode(tokenSet.id_token);
-	const decodedAccessToken: XeroAccessToken = jwtDecode(tokenSet.access_token);
-	await xero.updateTenants()
-	req.session.decodedIdToken = decodedIdToken;
-	req.session.decodedAccessToken = decodedAccessToken;
-	req.session.tokenSet = tokenSet;
-	req.session.allTenants = xero.tenants;
-	req.session.activeTenant = xero.tenants[0];
+  
+  if (tokenSet) {
+    const decodedIdToken: XeroIdToken = jwtDecode(tokenSet.id_token);
+    const decodedAccessToken: XeroAccessToken = jwtDecode(tokenSet.access_token);
+    await xero.updateTenants()
+    req.session.decodedIdToken = decodedIdToken;
+    req.session.decodedAccessToken = decodedAccessToken;
+    req.session.tokenSet = tokenSet;
+    req.session.allTenants = xero.tenants;
+    req.session.activeTenant = xero.tenants[0];
+  }
 }
 
-async function getContact(req) {
-  const job = req.body.job
+async function getContact(req, job) {
 	const contacts = await xero.accountingApi.getContacts(req.session.activeTenant.tenantId, undefined, `EmailAddress="${job.client.emailAddress}"`);
 	if (contacts.body.contacts.length > 0) {
 		return contacts.body.contacts[0].contactID
@@ -123,33 +134,37 @@ async function getContact(req) {
 	}
 }
 
-function generateInvoice(req, contact) {
-  const job = req.body.job
-  let lineItems = flatten(job.routes.map(route => route.vehicles.map(vehicle => {
-    const car = `${vehicle.car} / ${route.freightCode.code}`;
-    const lineItem: LineItem = {
-      description: route.po ? `PO: ${route.po} Vehicle: ${car}` : `${car}`,
-      quantity: 1,
-      unitAmount: route.freightCode.cost,
-      accountCode: "200",
-      taxType: "OUTPUT",
-      taxAmount: route.freightCode.cost * 0.1
-    }
-    return lineItem
-  })));
-  
-  return [{
-    type: Invoice.TypeEnum.ACCREC,
-    reference: `PO Numbers: ${job.routes.map(route => route.po).join(', ')}`,
-    lineItems,
-    contact: { contactID: contact },
-    lineAmountTypes: 'Exclusive', // GST exclusive
-    // TODO: set invoice number for production
-    // invoiceNumber: job.jobNumber,
-    invoiceNumber: Date.now().toString(),
-    DueDate: Date.now() + 604800,
-    Date: Date.now(),
-  }];
+async function generateInvoice(req) {
+  return await Promise.all(req.body.jobs.map( async job => {
+    const contact: Contact = await getContact(req, job)
+    console.log(contact)
+    let lineItems = flatten(job.routes.map(route => route.vehicles.map(vehicle => {
+      const car = `${vehicle.car} / ${route.freightCode.code}`;
+      const lineItem: LineItem = {
+        description: route.po ? `PO: ${route.po} Vehicle: ${car}` : `${car}`,
+        quantity: 1,
+        unitAmount: route.freightCode.cost,
+        accountCode: "200",
+        taxType: "OUTPUT",
+        taxAmount: route.freightCode.cost * 0.1
+      }
+      return lineItem
+    })));
+
+    return {
+      type: Invoice.TypeEnum.ACCREC,
+      reference: `PO Numbers: ${job.routes.map(route => route.po ? route.po : '').join(', ')}`,
+      lineItems,
+      contact: { contactID: contact },
+      lineAmountTypes: 'Exclusive', // GST exclusive
+      // TODO: set invoice number for production
+      // invoiceNumber: job.jobNumber,
+      invoiceNumber: `${Date.now().toString()}${Math.floor(Math.random() * 99)}`,
+      DueDate: Date.now() + 604800,
+      Date: Date.now(),
+      status: 'AUTHORISED'
+    };
+  }))
 }
 
 app.get('/', (req: Request, res: Response) => {
@@ -159,7 +174,6 @@ app.get('/', (req: Request, res: Response) => {
 app.get('/connect', async (req: Request, res: Response) => {
 	try {
 		const consentUrl: string = await xero.buildConsentUrl();
-    console.log('connecting')
     res.status(200);
     res.json({ url: consentUrl });    
 	} catch (err) {
@@ -190,14 +204,22 @@ app.get('/callback', async (req: Request, res: Response) => {
 
 app.post("/postinvoice", async (req: Request, res: Response) => {
 	req: Request = await authenticate(req);
+  if (req.redirectNeeded) {
+    const consentUrl: string = await xero.buildConsentUrl();
+    console.log('connecting')
+    res.json({ url: consentUrl });  
+  }
 	try {
-    const contact: Contact = await getContact(req)
-	  const invoices = generateInvoice(req, contact)	
+    console.log('meow1')
+	  const invoices = await generateInvoice(req)
+    console.log(invoices)
 		const response = await xero.accountingApi.createInvoices(req.session.activeTenant.tenantId, { invoices });
+    console.log('meow3')
     response.body.tokenSet = req.session.tokenSet
 		res.json(response.body);
 	} catch (err) {
 		console.log('error in /postinvoice')
+    console.log(err.body)
 		res.json(err);
 	}
 })
