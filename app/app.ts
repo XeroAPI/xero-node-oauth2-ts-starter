@@ -1,6 +1,8 @@
 require('dotenv').config();
 import express from 'express';
 import { Request, Response } from 'express';
+import * as bodyParser from "body-parser";
+import * as crypto from 'crypto';
 import jwtDecode from 'jwt-decode';
 import { TokenSet } from 'openid-client';
 import { XeroAccessToken, XeroIdToken, XeroClient, Contact, LineItem, Invoice, Invoices, Phone, Contacts } from 'xero-node';
@@ -34,6 +36,10 @@ app.use(session({
 	cookie: { secure: false },
 }));
 
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use('/webhooks', bodyParser.raw({ type: 'application/json' }));
+app.use(bodyParser.json());
+
 const authenticationData: any = (req: Request, res: Response) => {
 	return {
 		decodedIdToken: req.session.decodedIdToken,
@@ -42,6 +48,25 @@ const authenticationData: any = (req: Request, res: Response) => {
 		allTenants: req.session.allTenants,
 		activeTenant: req.session.activeTenant,
 	};
+};
+
+const randomNumber = (range) =>  {
+	return Math.round(Math.random() * ((range || 100) - 1) + 1);
+}
+
+const verifyWebhookEventSignature = (req: Request) => {
+	let computedSignature = crypto.createHmac('sha256', process.env.WEBHOOK_KEY).update(req.body.toString()).digest('base64');
+	let xeroSignature = req.headers['x-xero-signature'];
+
+	if (xeroSignature === computedSignature) {
+		console.log('Signature passed! This is from Xero!');
+		return true;
+	} else {
+		// If this happens someone who is not Xero is sending you a webhook
+		console.log('Signature failed. Webhook might not be from Xero or you have misconfigured something...');
+		console.log(`Got {${computedSignature}} when we were expecting {${xeroSignature}}`);
+		return false;
+	}
 };
 
 app.get('/', (req: Request, res: Response) => {
@@ -93,44 +118,10 @@ app.get('/organisation', async (req: Request, res: Response) => {
 	}
 });
 
-app.get('/invoice', async (req: Request, res: Response) => {
-	try {
-		const contacts = await xero.accountingApi.getContacts(req.session.activeTenant.tenantId);
-		console.log('contacts: ', contacts.body.contacts);
-		const where = 'Status=="ACTIVE" AND Type=="SALES"';
-		const accounts = await xero.accountingApi.getAccounts(req.session.activeTenant.tenantId, null, where);
-		console.log('accounts: ', accounts.body.accounts);
-		const contact: Contact = {
-			contactID: contacts.body.contacts[0].contactID
-		};
-		const lineItem: LineItem = {
-			accountID: accounts.body.accounts[0].accountID,
-			description: 'consulting',
-			quantity: 1.0,
-			unitAmount: 10.0
-		};
-		const invoice: Invoice = {
-			lineItems: [lineItem],
-			contact: contact,
-			dueDate: '2021-09-25',
-			date: '2021-09-24',
-			type: Invoice.TypeEnum.ACCREC
-		};
-		const invoices: Invoices = {
-			invoices: [invoice]
-		};
-		const response = await xero.accountingApi.createInvoices(req.session.activeTenant.tenantId, invoices);
-		console.log('invoices: ', response.body.invoices);
-		res.json(response.body.invoices);
-	} catch (err) {
-		res.json(err);
-	}
-});
-
 app.get('/contact', async (req: Request, res: Response) => {
 	try {
 		const contact: Contact = {
-			name: "Bruce Banner",
+			name: `Bruce Banner ${randomNumber(100)}`,
 			emailAddress: "hulk@avengers.com",
 			phones: [
 				{
@@ -148,6 +139,11 @@ app.get('/contact', async (req: Request, res: Response) => {
 	} catch (err) {
 		res.json(err);
 	}
+});
+
+app.post("/webhooks", async (req: Request, res: Response) => {
+	console.log("webhook event received!", req.headers, req.body, JSON.parse(req.body));
+	verifyWebhookEventSignature(req) ? res.status(200).send() : res.status(401).send();
 });
 
 const PORT = process.env.PORT || 5000;
