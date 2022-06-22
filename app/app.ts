@@ -112,7 +112,7 @@ app.get('/organisation', async (req: Request, res: Response) => {
 		const tokenSet: TokenSet = await xero.readTokenSet();
 		console.log(tokenSet.expired() ? 'expired' : 'valid');
 		const response: any = await xero.accountingApi.getOrganisations(req.session.activeTenant.tenantId);
-		res.send(`Hello, ${response.body.organisations[0].name}`);
+		res.send(`Hello, ${response.body.organisations[0].name}. <a href='/contact'>Create new contact to trigger webhook? </a>`);
 	} catch (err) {
 		res.send('Sorry, something went wrong');
 	}
